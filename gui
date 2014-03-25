@@ -1,0 +1,779 @@
+function varargout = gui(varargin)
+%  by  Martyna Piecko, Dominik Paw & mgr Ewa Stachowiak
+%        
+% GUI MATLAB code for gui.fig
+%      GUI, by itself, creates a new GUI or raises the existing
+%      singleton*.
+%
+%      H = GUI returns the handle to a new GUI or the handle to
+%      the existing singleton*.
+%
+%      GUI('CALLBACK',hObject,eventData,handles,...) calls the local
+%      function named CALLBACK in GUI.M with the given input arguments.
+%
+%      GUI('Property','Value',...) creates a new GUI or raises the
+%      existing singleton*.  Starting from the left, property value pairs are
+%      applied to the GUI before gui_OpeningFcn gets called.  An
+%      unrecognized property name or invalid value makes property application
+%      stop.  All inputs are passed to gui_OpeningFcn via varargin.
+%
+%      *See GUI Options on GUIDE's Tools menu.  Choose "GUI allows only one
+%      instance to run (singleton)".
+%
+% See also: GUIDE, GUIDATA, GUIHANDLES
+
+% Edit the above text to modify the response to help gui
+
+% Last Modified by GUIDE v2.5 08-May-2013 00:01:22
+
+% Begin initialization code - DO NOT EDIT
+gui_Singleton = 1;
+gui_State = struct('gui_Name',       mfilename, ...
+                   'gui_Singleton',  gui_Singleton, ...
+                   'gui_OpeningFcn', @gui_OpeningFcn, ...
+                   'gui_OutputFcn',  @gui_OutputFcn, ...
+                   'gui_LayoutFcn',  [] , ...
+                   'gui_Callback',   []);
+if nargin && ischar(varargin{1})
+    gui_State.gui_Callback = str2func(varargin{1});
+end
+
+if nargout
+    [varargout{1:nargout}] = gui_mainfcn(gui_State, varargin{:});
+else
+    gui_mainfcn(gui_State, varargin{:});
+end
+% End initialization code - DO NOT EDIT
+
+
+% --- Executes just before gui is made visible.
+function gui_OpeningFcn(hObject, eventdata, handles, varargin)
+% This function has no output args, see OutputFcn.
+% hObject    handle to figure
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+% varargin   command line arguments to gui (see VARARGIN)
+
+% Choose default command line output for gui
+handles.output = hObject;
+
+% Update handles structure
+guidata(hObject, handles);
+
+% UIWAIT makes gui wait for user response (see UIRESUME)
+% uiwait(handles.figure1);
+
+
+% --- Outputs from this function are returned to the command line.
+function varargout = gui_OutputFcn(hObject, eventdata, handles) 
+% varargout  cell array for returning output args (see VARARGOUT);
+% hObject    handle to figure
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+global x y z
+x = 1;
+y = 1;
+z = 1;
+% Get default command line output from handles structure
+varargout{1} = handles.output;
+
+
+% --- Executes on button press in btn_katalog.
+function btn_katalog_Callback(hObject, eventdata, handles)
+% hObject    handle to btn_katalog (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+global A sz sx sy sc KOSTKA GORA FRONT info wielkosc_pix_x wielkosc_pix_y wielkosc_pix_z
+
+% czyszczenie okien podpowiedzi
+set(handles.txt_podpowiedz1, 'String', ' ')
+set( handles.txt_podpowiedz2,'string', ' ')
+try
+katalog=uigetdir;                  % popros o wybranie sciezki
+A=dir([katalog '\*.dcm']);      % wrzuc do A informacje o zawartosci folderu
+sz=length(A);                         % ilosc plikow w foderze
+sciezka =[num2str(katalog) '\' A(1,1).name];
+info = dicominfo(sciezka);
+wielkosc_pix_x = double(info.PixelSpacing(1,1));
+wielkosc_pix_y = double(info.PixelSpacing(2,1));
+wielkosc_pix_z = double(info.SliceThickness);
+%wielkosc_pixela =(double(info.Width)+double(info.Height) ) / double(info.FileMetaInformationGroupLength);
+
+sc=pwd;
+
+% try
+     cd(katalog)                            % zmien Current Folder na ten, ktory zostal wybrany 
+%  catch
+%      return
+%  end
+%  try
+% tworzenie kostki 3D z przekrojami
+for i=1:sz
+
+im_name = A(i).name;
+    K=dicomread(im_name);
+    
+    if(i==1)
+        KOSTKA = K;
+    else
+        KOSTKA(:,:,i)=K;
+    end
+    
+end
+[sx sy sz]=size(KOSTKA);    
+
+GORA=permute(KOSTKA,[3,1,2]);
+
+% rekonstrukcja od frontu (troche na lezaco, ale mysle ze da sie to naprawic)
+FRONT=permute(KOSTKA,[2,3,1]);
+
+% to umozliwi wczytanie pierwszego przekroju do wszystkich axesow po
+% wczytaniu katalogu
+    im=KOSTKA(:,:,1); 
+axes(handles.axes1), imshow(im, []), hold on;                         % w axes1 znajduje sie obraz z lewej plaszczyzny
+    im_gora = GORA(:,:,1);
+axes(handles.axes2), imshow(im_gora, []), hold on;                % w axes2 jest obraz z frontu
+    im_front = FRONT(:,:,1);
+axes(handles.axes3), imshow(im_front, []), hold on;                % w axes3 jest obraz z gory
+
+ 
+% deklaracja dlugosci i kroku sliderów
+set(handles.slider1,'SliderStep',[1/(sz-1), 5/(sz-1)],'Min',1,'Max',sz,'Value',1)
+% wartosc1=get(slider1,'Value');
+set(handles.slider2,'SliderStep',[1/(sz-1), 5/(sz-1)],'Min',1,'Max',sz,'Value',1)
+% wartosc2=get(slider2,'Value');
+set(handles.slider3,'SliderStep',[1/(sz-1), 5/(sz-1)],'Min',1,'Max',sz,'Value',1)
+% wartosc3=get(slider3,'Value');
+catch
+     msgbox('Brak zdjec *.DICOM', 'Uwaga!');
+ end
+ cd(sc);        % wróc do katalogu w ktorym znajduja sie all *.m pliki
+
+
+
+% --- Executes on slider movement.
+function slider1_Callback(hObject, eventdata, handles)
+% hObject    handle to slider1 (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+global  sz KOSTKA slid1
+
+% Hints: get(hObject,'Value') returns position of slider
+%        get(hObject,'Min') and get(hObject,'Max') to determine range of slider
+try
+slid1 = round(get(hObject, 'value'));           % nr slide'u
+im=KOSTKA(:,:,slid1);                          
+axes(handles.axes1), imshow(im, []),  hold on;                % w axes1 znajduje sie obraz z lewej plaszczyzny
+catch
+    return
+end
+
+
+% --- Executes during object creation, after setting all properties.
+function slider1_CreateFcn(hObject, eventdata, handles)
+% hObject    handle to slider1 (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    empty - handles not created until after all CreateFcns called
+
+% Hint: slider controls usually have a light gray background.
+if isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
+    set(hObject,'BackgroundColor',[.9 .9 .9]);
+end
+
+
+
+% --- Executes on slider movement.
+function slider2_Callback(hObject, eventdata, handles)
+% hObject    handle to slider2 (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+global sz GORA slid2
+% Hints: get(hObject,'Value') returns position of slider
+%        get(hObject,'Min') and get(hObject,'Max') to determine range of slider
+try
+slid2 = round(get(hObject, 'value'))
+im=GORA(:,:,slid2);                          
+axes(handles.axes2), imshow(im, []), hold on; 
+catch
+    return
+end
+
+      
+% --- Executes during object creation, after setting all properties.
+function slider2_CreateFcn(hObject, eventdata, handles)
+% hObject    handle to slider2 (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    empty - handles not created until after all CreateFcns called
+
+% Hint: slider controls usually have a light gray background.
+if isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
+    set(hObject,'BackgroundColor',[.9 .9 .9]);
+end
+
+
+% --- Executes on slider movement.
+function slider3_Callback(hObject, eventdata, handles)
+% hObject    handle to slider3 (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+global FRONT sz slid3
+% Hints: get(hObject,'Value') returns position of slider
+%        get(hObject,'Min') and get(hObject,'Max') to determine range of slider
+try
+slid3 = round(get(hObject, 'value'));
+im=FRONT(:,:,slid3);                          
+axes(handles.axes3), imshow(im, []), hold on; 
+catch
+    return
+end
+
+
+% --- Executes during object creation, after setting all properties.
+function slider3_CreateFcn(hObject, eventdata, handles)
+% hObject    handle to slider3 (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    empty - handles not created until after all CreateFcns called
+
+% Hint: slider controls usually have a light gray background.
+if isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
+    set(hObject,'BackgroundColor',[.9 .9 .9]);
+end
+
+
+% --- Executes on button press in btn_odcinek.
+function btn_odcinek_Callback(hObject, eventdata, handles)
+% hObject    handle to btn_odcinek (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+global wielkosc_pix_x wielkosc_pix_y wielkosc_pix_z slid1 slid2 slid3
+set(handles.txt_podpowiedz1, 'String', '1) Wskaż szerokoć czaszki')
+set(handles.txt_podpowiedz2, 'string', '2) Wskaż długoć czaszki')
+hold on
+for i=1:2 
+
+[x,y] = ginput(1)
+
+ plot(x(1),y(1),'r.','MarkerSize',20)
+
+ 
+    if(get(handles.rb_A, 'value') == 1)              z = slid3
+    elseif(get(handles.rb_B, 'value')==1)          z = slid2
+    elseif(get(handles.rb_C, 'value')==1)          z = slid1
+    end
+    
+ 
+ X(i)=x;
+ Y(i)=y;
+ Z(i)=z;
+ 
+end
+ line(X, Y, 'color','r')
+szer=sqrt((X(2)-X(1))^2 * wielkosc_pix_x + (Y(2)-Y(1))^2*wielkosc_pix_y + (Z(2)-Z(1))^2 *wielkosc_pix_z);          % dlugosc wyznaczonego odcinka
+
+for i=1:2
+
+[x,y] = ginput(1)
+
+ plot(x(1),y(1),'r.','MarkerSize',20)
+ 
+ 
+    if(get(handles.rb_A, 'value') == 1)              z = slid3
+    elseif(get(handles.rb_B, 'value')==1)          z = slid2
+    elseif(get(handles.rb_C, 'value')==1)          z = slid1
+    end
+    
+    
+ 
+ X(i)=x;
+ Y(i)=y;
+ Z(i)=z;
+ 
+end
+ line(X, Y, 'color','r')
+dl=sqrt((X(2)-X(1))^2 * wielkosc_pix_x + (Y(2)-Y(1))^2*wielkosc_pix_y + (Z(2)-Z(1))^2 *wielkosc_pix_z);          % dlugosc wyznaczonego odcinka
+hold off
+
+wynik =(szer/dl); 
+set(handles.edit1, 'string', num2str(wynik));
+
+
+function edit1_Callback(hObject, eventdata, handles)
+% hObject    handle to edit1 (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+% Hints: get(hObject,'String') returns contents of edit1 as text
+%        str2double(get(hObject,'String')) returns contents of edit1 as a double
+
+
+% --- Executes during object creation, after setting all properties.
+function edit1_CreateFcn(hObject, eventdata, handles)
+% hObject    handle to edit1 (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    empty - handles not created until after all CreateFcns called
+
+% Hint: edit controls usually have a white background on Windows.
+%       See ISPC and COMPUTER.
+if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
+    set(hObject,'BackgroundColor','white');
+end
+
+
+% --- Executes on button press in btnIPTLDCz.
+function btnIPTLDCz_Callback(hObject, eventdata, handles)
+% hObject    handle to btnIPTLDCz (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+global wielkosc_pix_x wielkosc_pix_y wielkosc_pix_z slid1 slid2 slid3
+set(handles.txt_podpowiedz1, 'String', '1) Podaj przedniš lewš długoć czaszki')
+set(handles.txt_podpowiedz2, 'string', '2) Podaj tylnš lewš długoć czaszki')
+hold on   
+for i=1:2 
+
+[x,y] = ginput(1)
+
+ plot(x(1),y(1),'r.','MarkerSize',20)
+
+ 
+    if(get(handles.rb_A, 'value') == 1)              z = slid3
+    elseif(get(handles.rb_B, 'value')==1)          z = slid2
+    elseif(get(handles.rb_C, 'value')==1)          z = slid1
+    end
+    
+ 
+ X(i)=x;
+ Y(i)=y;
+ Z(i)=z;
+ 
+end
+ line(X, Y, 'color','r')
+szer=sqrt((X(2)-X(1))^2 * wielkosc_pix_x + (Y(2)-Y(1))^2*wielkosc_pix_y + (Z(2)-Z(1))^2 *wielkosc_pix_z);          % dlugosc wyznaczonego odcinka
+
+for i=1:2
+
+[x,y] = ginput(1)
+
+ plot(x(1),y(1),'r.','MarkerSize',20)
+ 
+ 
+    if(get(handles.rb_A, 'value') == 1)              z = slid3
+    elseif(get(handles.rb_B, 'value')==1)          z = slid2
+    elseif(get(handles.rb_C, 'value')==1)          z = slid1
+    end
+    
+    
+ 
+ X(i)=x;
+ Y(i)=y;
+ Z(i)=z;
+ 
+end
+ line(X, Y, 'color','r')
+dl=sqrt((X(2)-X(1))^2 * wielkosc_pix_x + (Y(2)-Y(1))^2*wielkosc_pix_y + (Z(2)-Z(1))^2 *wielkosc_pix_z);          % dlugosc wyznaczonego odcinka
+hold off
+
+wynik =(szer/dl);
+set(handles.edit2, 'string', num2str(wynik));
+
+% --- Executes on button press in btn_PTPDC.
+function btn_PTPDC_Callback(hObject, eventdata, handles)
+% hObject    handle to btn_PTPDC (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+global wielkosc_pix_x wielkosc_pix_y wielkosc_pix_z slid1 slid2 slid3
+set(handles.txt_podpowiedz1, 'String', '1) Podaj przedniš prawš długoć czaszki')
+set(handles.txt_podpowiedz2, 'string', '2) Podaj tylnš prawš długoć czaszki')
+hold on
+for i=1:2 
+
+[x,y] = ginput(1)
+
+ plot(x(1),y(1),'r.','MarkerSize',20)
+
+ 
+    if(get(handles.rb_A, 'value') == 1)              z = slid3
+    elseif(get(handles.rb_B, 'value')==1)          z = slid2
+    elseif(get(handles.rb_C, 'value')==1)          z = slid1
+    end
+    
+ 
+ X(i)=x;
+ Y(i)=y;
+ Z(i)=z;
+ 
+end
+ line(X, Y, 'color','r')
+szer=sqrt((X(2)-X(1))^2 * wielkosc_pix_x + (Y(2)-Y(1))^2*wielkosc_pix_y + (Z(2)-Z(1))^2 *wielkosc_pix_z);          % dlugosc wyznaczonego odcinka
+
+for i=1:2
+
+[x,y] = ginput(1)
+
+ plot(x(1),y(1),'r.','MarkerSize',20)
+ 
+ 
+    if(get(handles.rb_A, 'value') == 1)              z = slid3
+    elseif(get(handles.rb_B, 'value')==1)          z = slid2
+    elseif(get(handles.rb_C, 'value')==1)          z = slid1
+    end
+    
+    
+ 
+ X(i)=x;
+ Y(i)=y;
+ Z(i)=z;
+ 
+end
+ line(X, Y, 'color','r')
+dl=sqrt((X(2)-X(1))^2 * wielkosc_pix_x + (Y(2)-Y(1))^2*wielkosc_pix_y + (Z(2)-Z(1))^2 *wielkosc_pix_z);          % dlugosc wyznaczonego odcinka
+hold off
+
+wynik =(szer/dl);
+set(handles.edit3, 'string', num2str(wynik));
+
+
+
+function edit2_Callback(hObject, eventdata, handles)
+% hObject    handle to edit2 (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+% Hints: get(hObject,'String') returns contents of edit2 as text
+%        str2double(get(hObject,'String')) returns contents of edit2 as a double
+
+
+% --- Executes during object creation, after setting all properties.
+function edit2_CreateFcn(hObject, eventdata, handles)
+% hObject    handle to edit2 (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    empty - handles not created until after all CreateFcns called
+
+% Hint: edit controls usually have a white background on Windows.
+%       See ISPC and COMPUTER.
+if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
+    set(hObject,'BackgroundColor','white');
+end
+
+
+
+function edit3_Callback(hObject, eventdata, handles)
+% hObject    handle to edit3 (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+% Hints: get(hObject,'String') returns contents of edit3 as text
+%        str2double(get(hObject,'String')) returns contents of edit3 as a double
+
+
+% --- Executes during object creation, after setting all properties.
+function edit3_CreateFcn(hObject, eventdata, handles)
+% hObject    handle to edit3 (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    empty - handles not created until after all CreateFcns called
+
+% Hint: edit controls usually have a white background on Windows.
+%       See ISPC and COMPUTER.
+if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
+    set(hObject,'BackgroundColor','white');
+end
+
+
+% --- Executes on button press in btn_PTWSC.
+function btn_PTWSC_Callback(hObject, eventdata, handles)
+% hObject    handle to btn_PTWSC (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+global wielkosc_pix_x wielkosc_pix_y wielkosc_pix_z slid1 slid2 slid3
+set(handles.txt_podpowiedz1, 'String', '1) Wskaż przedniš długoć sklepienia czaszki')
+set(handles.txt_podpowiedz2, 'string', '2) Wskaż tylnš długoć sklepienia czaszki')
+hold on
+for i=1:2 
+
+[x,y] = ginput(1)
+
+ plot(x(1),y(1),'r.','MarkerSize',20)
+
+ 
+    if(get(handles.rb_A, 'value') == 1)              z = slid3
+    elseif(get(handles.rb_B, 'value')==1)          z = slid2
+    elseif(get(handles.rb_C, 'value')==1)          z = slid1
+    end
+    
+ 
+ X(i)=x;
+ Y(i)=y;
+ Z(i)=z;
+ 
+end
+ line(X, Y, 'color','r')
+szer=sqrt((X(2)-X(1))^2 * wielkosc_pix_x + (Y(2)-Y(1))^2*wielkosc_pix_y + (Z(2)-Z(1))^2 *wielkosc_pix_z);          % dlugosc wyznaczonego odcinka
+
+for i=1:2
+
+[x,y] = ginput(1)
+
+ plot(x(1),y(1),'r.','MarkerSize',20)
+ 
+ 
+    if(get(handles.rb_A, 'value') == 1)              z = slid3
+    elseif(get(handles.rb_B, 'value')==1)          z = slid2
+    elseif(get(handles.rb_C, 'value')==1)          z = slid1
+    end
+    
+    
+ 
+ X(i)=x;
+ Y(i)=y;
+ Z(i)=z;
+ 
+end
+ line(X, Y, 'color','r')
+dl=sqrt((X(2)-X(1))^2 * wielkosc_pix_x + (Y(2)-Y(1))^2*wielkosc_pix_y + (Z(2)-Z(1))^2 *wielkosc_pix_z);          % dlugosc wyznaczonego odcinka
+hold off
+
+wynik =(szer/dl);
+set(handles.edit4, 'string', num2str(wynik));
+
+
+function edit4_Callback(hObject, eventdata, handles)
+% hObject    handle to edit4 (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+% Hints: get(hObject,'String') returns contents of edit4 as text
+%        str2double(get(hObject,'String')) returns contents of edit4 as a double
+
+
+% --- Executes during object creation, after setting all properties.
+function edit4_CreateFcn(hObject, eventdata, handles)
+% hObject    handle to edit4 (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    empty - handles not created until after all CreateFcns called
+
+% Hint: edit controls usually have a white background on Windows.
+%       See ISPC and COMPUTER.
+if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
+    set(hObject,'BackgroundColor','white');
+end
+
+
+% --- Executes on button press in btn_SCSWO.
+function btn_SCSWO_Callback(hObject, eventdata, handles)
+% hObject    handle to btn_SCSWO (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+global wielkosc_pix_x wielkosc_pix_y wielkosc_pix_z slid1 slid2 slid3
+set(handles.txt_podpowiedz1, 'String', '1) Wskaż szerokoć czaszki')
+set(handles.txt_podpowiedz2, 'string', '2) Wskaż szerokoć wewnętrznš oczodołów')
+hold on
+for i=1:2 
+
+[x,y] = ginput(1)
+
+ plot(x(1),y(1),'r.','MarkerSize',20)
+
+ 
+    if(get(handles.rb_A, 'value') == 1)              z = slid3
+    elseif(get(handles.rb_B, 'value')==1)          z = slid2
+    elseif(get(handles.rb_C, 'value')==1)          z = slid1
+    end
+    
+ 
+ X(i)=x;
+ Y(i)=y;
+ Z(i)=z;
+ 
+end
+ line(X, Y, 'color','r')
+szer=sqrt((X(2)-X(1))^2 * wielkosc_pix_x + (Y(2)-Y(1))^2*wielkosc_pix_y + (Z(2)-Z(1))^2 *wielkosc_pix_z);          % dlugosc wyznaczonego odcinka
+
+for i=1:2
+
+[x,y] = ginput(1)
+
+ plot(x(1),y(1),'r.','MarkerSize',20)
+ 
+ 
+    if(get(handles.rb_A, 'value') == 1)              z = slid3
+    elseif(get(handles.rb_B, 'value')==1)          z = slid2
+    elseif(get(handles.rb_C, 'value')==1)          z = slid1
+    end
+    
+    
+ 
+ X(i)=x;
+ Y(i)=y;
+ Z(i)=z;
+ 
+end
+ line(X, Y, 'color','r')
+dl=sqrt((X(2)-X(1))^2 * wielkosc_pix_x + (Y(2)-Y(1))^2*wielkosc_pix_y + (Z(2)-Z(1))^2 *wielkosc_pix_z);          % dlugosc wyznaczonego odcinka
+hold off
+
+wynik =(szer/dl);
+set(handles.edit5, 'string', num2str(wynik));
+
+
+function edit5_Callback(hObject, eventdata, handles)
+% hObject    handle to edit5 (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+% Hints: get(hObject,'String') returns contents of edit5 as text
+%        str2double(get(hObject,'String')) returns contents of edit5 as a double
+
+
+% --- Executes during object creation, after setting all properties.
+function edit5_CreateFcn(hObject, eventdata, handles)
+% hObject    handle to edit5 (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    empty - handles not created until after all CreateFcns called
+
+% Hint: edit controls usually have a white background on Windows.
+%       See ISPC and COMPUTER.
+if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
+    set(hObject,'BackgroundColor','white');
+end
+
+
+% --- Executes on button press in btn_SWZO.
+function btn_SWZO_Callback(hObject, eventdata, handles)
+% hObject    handle to btn_SWZO (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+global wielkosc_pix_x wielkosc_pix_y wielkosc_pix_z slid1 slid2 slid3
+set(handles.txt_podpowiedz1, 'String', '1) Wskaż szerokoć czaszki')
+set(handles.txt_podpowiedz2, 'string', '2) Wskaż szerokoć zewnętrznš oczodołów')
+hold on
+for i=1:2 
+
+[x,y] = ginput(1)
+
+ plot(x(1),y(1),'r.','MarkerSize',20)
+
+ 
+    if(get(handles.rb_A, 'value') == 1)              z = slid3
+    elseif(get(handles.rb_B, 'value')==1)          z = slid2
+    elseif(get(handles.rb_C, 'value')==1)          z = slid1
+    end
+    
+ 
+ X(i)=x;
+ Y(i)=y;
+ Z(i)=z;
+ 
+end
+ line(X, Y, 'color','r')
+szer=sqrt((X(2)-X(1))^2 * wielkosc_pix_x + (Y(2)-Y(1))^2*wielkosc_pix_y + (Z(2)-Z(1))^2 *wielkosc_pix_z);          % dlugosc wyznaczonego odcinka
+
+for i=1:2
+
+[x,y] = ginput(1)
+
+ plot(x(1),y(1),'r.','MarkerSize',20)
+ 
+ 
+    if(get(handles.rb_A, 'value') == 1)              z = slid3
+    elseif(get(handles.rb_B, 'value')==1)          z = slid2
+    elseif(get(handles.rb_C, 'value')==1)          z = slid1
+    end
+    
+    
+ 
+ X(i)=x;
+ Y(i)=y;
+ Z(i)=z;
+ 
+end
+ line(X, Y, 'color','r')
+dl=sqrt((X(2)-X(1))^2 * wielkosc_pix_x + (Y(2)-Y(1))^2*wielkosc_pix_y + (Z(2)-Z(1))^2 *wielkosc_pix_z);          % dlugosc wyznaczonego odcinka
+hold off
+
+wynik =(szer/dl);
+set(handles.edit6, 'string', num2str(wynik));
+
+
+function edit6_Callback(hObject, eventdata, handles)
+% hObject    handle to edit6 (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+% Hints: get(hObject,'String') returns contents of edit6 as text
+%        str2double(get(hObject,'String')) returns contents of edit6 as a double
+
+
+% --- Executes during object creation, after setting all properties.
+function edit6_CreateFcn(hObject, eventdata, handles)
+% hObject    handle to edit6 (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    empty - handles not created until after all CreateFcns called
+
+% Hint: edit controls usually have a white background on Windows.
+%       See ISPC and COMPUTER.
+if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
+    set(hObject,'BackgroundColor','white');
+end
+
+
+% --- Executes on button press in btn_KKC.
+function btn_KKC_Callback(hObject, eventdata, handles)
+% hObject    handle to btn_KKC (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+global wielkosc_pix_x wielkosc_pix_y wielkosc_pix_z slid1 slid2 slid3
+set(handles.txt_podpowiedz1, 'String', '1) Wskaż odległoć między najbardziej wysuniętym punktem na lewej częci czaszki do punktu na końcu kosci nosowej')
+set(handles.txt_podpowiedz2, 'string', '2) Wskaż odległoć między najbardziej wysuniętym punktem na prawej częci czaszki do punktu na końcu kosci nosowej')
+hold on
+for i=1:3 
+
+[x,y] = ginput(1)
+
+ plot(x(1),y(1),'r.','MarkerSize',20)
+ 
+    if(get(handles.rb_A, 'value') == 1)              z = slid3
+    elseif(get(handles.rb_B, 'value')==1)          z = slid2
+    elseif(get(handles.rb_C, 'value')==1)          z = slid1
+    end
+ 
+ X(i)=x;
+ Y(i)=y;
+ Z(i)=z;
+ 
+end
+ line(X, Y, 'color','r')
+ hold off
+A=[X(1) Y(1) Z(1)];
+B=[X(2) Y(2) Z(2)]; %% punkt rodkowy
+C=[X(3) Y(3) Z(3)];
+k=A-B;%% obliczenie wektorów kierunkowych
+l=C-B;
+W=dot(k,l);%% iloczyn skalarny
+dl_l=sqrt( (X(2)-X(3))^2*wielkosc_pix_x + (Y(2)-Y(3))^2*wielkosc_pix_y + (Z(2)-Z(3))^2 * wielkosc_pix_z );
+dl_k=sqrt( (X(2)-X(1))^2*wielkosc_pix_x + (Y(2)-Y(1))^2*wielkosc_pix_y + (Z(2)-Z(1))^2 * wielkosc_pix_z );
+cos=W/(dl_k*dl_l);
+kat=acos(cos)/(2*pi)*360;
+
+wynik =kat;
+set(handles.edit7, 'string', num2str(wynik));
+
+
+function edit7_Callback(hObject, eventdata, handles)
+% hObject    handle to edit7 (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+% Hints: get(hObject,'String') returns contents of edit7 as text
+%        str2double(get(hObject,'String')) returns contents of edit7 as a double
+
+
+% --- Executes during object creation, after setting all properties.
+function edit7_CreateFcn(hObject, eventdata, handles)
+% hObject    handle to edit7 (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    empty - handles not created until after all CreateFcns called
+
+% Hint: edit controls usually have a white background on Windows.
+%       See ISPC and COMPUTER.
+if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
+    set(hObject,'BackgroundColor','white');
+end
